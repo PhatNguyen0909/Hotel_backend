@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: hotel-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: APP_NAME
+        value: Hotel Backend
+      - key: GOOGLE_SPREADSHEET_ID
+        sync: false
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: HOTEL_SHEET_NAME
+        value: thông tin khách sạn
+      - key: CUSTOMER_SHEET_NAME
+        value: Danh sách khách hàng
+      - key: BOOKING_SHEET_NAME
+        value: Đặt phòng
+      - key: ROOM_SHEET_NAME
+        value: Danh sách phòng
