@@ -40,10 +40,13 @@ class GoogleSheetsRepository:
             definition,
             payload,
             fallback_id=None,
-            allow_missing_id=entity_key == "customers",
+            allow_missing_id=entity_key in {"customers", "bookings"},
         )
         if entity_key == "customers" and not str(record.get(definition.id_field, "")).strip():
-            record[definition.id_field] = self._generate_next_customer_id(
+            record[definition.id_field] = self._generate_next_record_id(
+                entity_key)
+        if entity_key == "bookings" and not str(record.get(definition.id_field, "")).strip():
+            record[definition.id_field] = self._generate_next_record_id(
                 entity_key)
         existing = self.get_record(entity_key, record[definition.id_field])
         if existing is not None:
@@ -220,17 +223,28 @@ class GoogleSheetsRepository:
             unique_headers.append(header_text)
         return unique_headers
 
-    def _generate_next_customer_id(self, entity_key: str) -> str:
+    def _generate_next_record_id(self, entity_key: str) -> str:
         definition = self._get_sheet_definition(entity_key)
+        prefix_map = {
+            "customers": "KH",
+            "bookings": "DP",
+        }
+        prefix = prefix_map.get(entity_key)
+        if prefix is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Auto-generated IDs are not configured for '{entity_key}'",
+            )
+
         existing_ids = []
         for record in self.list_records(entity_key):
             current_id = str(record.get(definition.id_field, "")).strip()
-            match = re.fullmatch(r"KH(\d+)", current_id)
+            match = re.fullmatch(rf"{re.escape(prefix)}(\d+)", current_id)
             if match:
                 existing_ids.append(int(match.group(1)))
 
         next_number = max(existing_ids, default=0) + 1
-        return f"KH{next_number:03d}"
+        return f"{prefix}{next_number:03d}"
 
     @staticmethod
     def _normalize_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -105,18 +105,14 @@ Content-Type: application/json
 
 {
   "Họ và tên": "Nguyen Minh Quan",
-  "Giới tính": "Nam",
   "Số điện thoại": 905123456,
-  "Email": "quan.nguyen@gmail.com",
-  "Số CCCD/Hộ chiếu": 79204015678,
-  "Quốc tịch": "Việt Nam",
-  "Loại khách": "Khách lẻ",
-  "Công ty": "",
-  "Ghi chú": "Thích phòng tầng cao"
+  "Email": "quan.nguyen@gmail.com"
 }
 ```
 
 `Mã khách hàng` sẽ tự được sinh theo dạng `KH001`, `KH002`, ... nếu bạn không gửi lên.
+
+Các thông tin còn lại như giới tính, CCCD/hộ chiếu, quốc tịch, loại khách, công ty và ghi chú có thể cập nhật sau bằng `PUT /api/customers/{id}`.
 
 Create a booking:
 
