@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Any, Optional
 
 import gspread
@@ -35,7 +36,15 @@ class GoogleSheetsRepository:
 
     def create_record(self, entity_key: str, payload: dict[str, Any]) -> dict[str, Any]:
         definition = self._get_sheet_definition(entity_key)
-        record = self._prepare_payload(definition, payload, fallback_id=None)
+        record = self._prepare_payload(
+            definition,
+            payload,
+            fallback_id=None,
+            allow_missing_id=entity_key == "customers",
+        )
+        if entity_key == "customers" and not str(record.get(definition.id_field, "")).strip():
+            record[definition.id_field] = self._generate_next_customer_id(
+                entity_key)
         existing = self.get_record(entity_key, record[definition.id_field])
         if existing is not None:
             raise HTTPException(
@@ -181,6 +190,7 @@ class GoogleSheetsRepository:
         definition: SheetDefinition,
         payload: dict[str, Any],
         fallback_id: Optional[str],
+        allow_missing_id: bool = False,
     ) -> dict[str, Any]:
         record = {str(key).strip(): value for key,
                   value in payload.items() if str(key).strip()}
@@ -188,6 +198,9 @@ class GoogleSheetsRepository:
             "id") or fallback_id
 
         if record_id is None or str(record_id).strip() == "":
+            if allow_missing_id:
+                record.pop("id", None)
+                return record
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Payload must include a non-empty '{definition.id_field}'",
@@ -206,6 +219,18 @@ class GoogleSheetsRepository:
                 continue
             unique_headers.append(header_text)
         return unique_headers
+
+    def _generate_next_customer_id(self, entity_key: str) -> str:
+        definition = self._get_sheet_definition(entity_key)
+        existing_ids = []
+        for record in self.list_records(entity_key):
+            current_id = str(record.get(definition.id_field, "")).strip()
+            match = re.fullmatch(r"KH(\d+)", current_id)
+            if match:
+                existing_ids.append(int(match.group(1)))
+
+        next_number = max(existing_ids, default=0) + 1
+        return f"KH{next_number:03d}"
 
     @staticmethod
     def _normalize_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
