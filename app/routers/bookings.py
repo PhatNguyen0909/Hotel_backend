@@ -1,15 +1,30 @@
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from app.dependencies import get_google_sheets_repository
 from app.services.google_sheets import GoogleSheetsRepository, _parse_date
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
+# Maps any field name variant Dify might send → internal snake_case name
+_FIELD_ALIASES = {
+    "Ngày nhận phòng": "ngay_nhan_phong",
+    "Ngày trả phòng": "ngay_tra_phong",
+    "ngay_nhan_phong": "ngay_nhan_phong",
+    "ngay_tra_phong": "ngay_tra_phong",
+}
+
 
 class AvailabilityRequest(BaseModel):
     ngay_nhan_phong: str
     ngay_tra_phong: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_keys(cls, data):
+        if isinstance(data, dict):
+            return {_FIELD_ALIASES.get(k, k): v for k, v in data.items()}
+        return data
 
 
 def _resolve_availability(ngay_nhan_phong: str, ngay_tra_phong: str, repository: GoogleSheetsRepository):
