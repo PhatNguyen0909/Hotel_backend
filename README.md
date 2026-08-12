@@ -121,7 +121,6 @@ POST /api/bookings
 Content-Type: application/json
 
 {
-  "Mã đặt phòng": "DP013",
   "Ngày đặt": "2026-08-10",
   "Ngày nhận phòng": "2026-08-12",
   "Ngày trả phòng": "2026-08-14",
@@ -134,6 +133,8 @@ Content-Type: application/json
   "Tổng tiền phòng": 1700000
 }
 ```
+
+`Mã đặt phòng` sẽ tự được sinh theo dạng `DP001`, `DP002`, ... nếu bạn không gửi lên.
 
 Update a room:
 

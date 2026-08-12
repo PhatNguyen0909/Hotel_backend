@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import date
 from typing import Any, Optional
 
 import gspread
@@ -7,6 +8,18 @@ from fastapi import HTTPException, status
 from gspread.exceptions import WorksheetNotFound
 
 from app.config import Settings, SheetDefinition
+
+
+def _parse_date(value: str) -> date:
+    """Parse date string in DD/MM/YYYY or YYYY-MM-DD format."""
+    value = str(value).strip()
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+        try:
+            from datetime import datetime
+            return datetime.strptime(value, fmt).date()
+        except ValueError:
+            continue
+    raise ValueError(f"Cannot parse date: '{value}'")
 
 
 def _column_letter(column_number: int) -> str:
@@ -61,6 +74,47 @@ class GoogleSheetsRepository:
                for header in headers]
         worksheet.append_row(row, value_input_option="USER_ENTERED")
         return {header: record.get(header, "") for header in headers}
+
+    def search_room_availability(
+        self,
+        room_id: str,
+        check_in: date,
+        check_out: date,
+    ) -> dict[str, Any]:
+        if check_in >= check_out:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Ngày nhận phòng phải trước ngày trả phòng",
+            )
+
+        bookings = self.list_records("bookings")
+        conflicting: list[dict[str, Any]] = []
+
+        for booking in bookings:
+            if str(booking.get("Mã phòng", "")).strip() != room_id:
+                continue
+            # Skip cancelled bookings if status field is present
+            booking_status = str(booking.get("Trạng thái đặt phòng", "")).strip().lower()
+            if booking_status in {"đã hủy", "huy", "cancelled", "canceled"}:
+                continue
+            try:
+                b_check_in = _parse_date(booking.get("Ngày nhận phòng", ""))
+                b_check_out = _parse_date(booking.get("Ngày trả phòng", ""))
+            except ValueError:
+                continue
+
+            # Overlap: [check_in, check_out) overlaps [b_check_in, b_check_out)
+            if check_in < b_check_out and b_check_in < check_out:
+                conflicting.append(booking)
+
+        return {
+            "available": len(conflicting) == 0,
+            "ma_phong": room_id,
+            "ngay_nhan_phong": check_in.isoformat(),
+            "ngay_tra_phong": check_out.isoformat(),
+            "so_booking_trung": len(conflicting),
+            "bookings_trung_lich": conflicting,
+        }
 
     def update_record(
         self,
