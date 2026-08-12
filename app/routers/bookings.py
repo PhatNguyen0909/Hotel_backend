@@ -8,16 +8,18 @@ from app.services.google_sheets import GoogleSheetsRepository
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
 # Must be registered BEFORE /{record_id} to avoid path conflict
+
+
 @router.get("/search-availability", response_model=None)
-def search_room_availability(
-    ma_phong: str = Query(..., description="Mã phòng cần kiểm tra"),
-    ngay_nhan_phong: date = Query(..., description="Ngày nhận phòng (YYYY-MM-DD)"),
-    ngay_tra_phong: date = Query(..., description="Ngày trả phòng (YYYY-MM-DD)"),
+def list_available_rooms(
+    ngay_nhan_phong: date = Query(...,
+                                  description="Ngày nhận phòng (YYYY-MM-DD)"),
+    ngay_tra_phong: date = Query(...,
+                                 description="Ngày trả phòng (YYYY-MM-DD)"),
     repository: GoogleSheetsRepository = Depends(get_google_sheets_repository),
 ):
-    """Kiểm tra phòng có bị đặt trùng lịch trong khoảng ngày cho trước hay không."""
-    return repository.search_room_availability(
-        room_id=ma_phong,
+    """Trả về danh sách phòng còn trống trong khoảng ngày nhận – trả phòng."""
+    return repository.list_available_rooms(
         check_in=ngay_nhan_phong,
         check_out=ngay_tra_phong,
     )
@@ -37,7 +39,8 @@ def get_booking(
 ):
     record = repository.get_record("bookings", record_id)
     if record is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
     return record
 
 

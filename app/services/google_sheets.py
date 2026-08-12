@@ -75,9 +75,8 @@ class GoogleSheetsRepository:
         worksheet.append_row(row, value_input_option="USER_ENTERED")
         return {header: record.get(header, "") for header in headers}
 
-    def search_room_availability(
+    def list_available_rooms(
         self,
-        room_id: str,
         check_in: date,
         check_out: date,
     ) -> dict[str, Any]:
@@ -87,14 +86,11 @@ class GoogleSheetsRepository:
                 detail="Ngày nhận phòng phải trước ngày trả phòng",
             )
 
-        bookings = self.list_records("bookings")
-        conflicting: list[dict[str, Any]] = []
-
-        for booking in bookings:
-            if str(booking.get("Mã phòng", "")).strip() != room_id:
-                continue
-            # Skip cancelled bookings if status field is present
-            booking_status = str(booking.get("Trạng thái đặt phòng", "")).strip().lower()
+        # Collect room IDs that are booked (overlap) in the date range
+        booked_room_ids: set[str] = set()
+        for booking in self.list_records("bookings"):
+            booking_status = str(booking.get(
+                "Trạng thái đặt phòng", "")).strip().lower()
             if booking_status in {"đã hủy", "huy", "cancelled", "canceled"}:
                 continue
             try:
@@ -102,18 +98,20 @@ class GoogleSheetsRepository:
                 b_check_out = _parse_date(booking.get("Ngày trả phòng", ""))
             except ValueError:
                 continue
-
-            # Overlap: [check_in, check_out) overlaps [b_check_in, b_check_out)
             if check_in < b_check_out and b_check_in < check_out:
-                conflicting.append(booking)
+                booked_room_ids.add(str(booking.get("Mã phòng", "")).strip())
+
+        all_rooms = self.list_records("rooms")
+        available_rooms = [
+            room for room in all_rooms
+            if str(room.get("Mã phòng", "")).strip() not in booked_room_ids
+        ]
 
         return {
-            "available": len(conflicting) == 0,
-            "ma_phong": room_id,
             "ngay_nhan_phong": check_in.isoformat(),
             "ngay_tra_phong": check_out.isoformat(),
-            "so_booking_trung": len(conflicting),
-            "bookings_trung_lich": conflicting,
+            "so_phong_trong": len(available_rooms),
+            "phong_trong": available_rooms,
         }
 
     def update_record(
