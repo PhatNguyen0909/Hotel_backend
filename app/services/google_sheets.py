@@ -11,14 +11,34 @@ from app.config import Settings, SheetDefinition
 
 
 def _parse_date(value: str) -> date:
-    """Parse date string in DD/MM/YYYY or YYYY-MM-DD format."""
+    """Parse date flexibly; defaults missing year to current year."""
+    from datetime import datetime
     value = str(value).strip()
-    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+    current_year = datetime.now().year
+
+    # Normalize separators to /
+    normalized = value.replace("-", "/").replace(".", "/").replace(" ", "/")
+
+    # Full date formats (4-digit year)
+    for fmt in ("%d/%m/%Y", "%Y/%m/%d", "%m/%d/%Y"):
         try:
-            from datetime import datetime
-            return datetime.strptime(value, fmt).date()
+            return datetime.strptime(normalized, fmt).date()
         except ValueError:
             continue
+
+    # 2-digit year
+    try:
+        return datetime.strptime(normalized, "%d/%m/%y").date()
+    except ValueError:
+        pass
+
+    # DD/MM only → default to current year
+    try:
+        d = datetime.strptime(normalized, "%d/%m")
+        return d.replace(year=current_year).date()
+    except ValueError:
+        pass
+
     raise ValueError(f"Cannot parse date: '{value}'")
 
 
