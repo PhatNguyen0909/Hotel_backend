@@ -42,7 +42,8 @@ def _parse_date(value: str) -> date:
     # Fallback: dateutil handles natural language like "December 20, 2025" or "20 Dec 2025"
     try:
         from dateutil import parser as _du
-        parsed = _du.parse(value, dayfirst=True, default=datetime(current_year, 1, 1))
+        parsed = _du.parse(value, dayfirst=True,
+                           default=datetime(current_year, 1, 1))
         return parsed.date()
     except Exception:
         pass
