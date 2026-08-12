@@ -10,8 +10,10 @@ router = APIRouter(prefix="/bookings", tags=["bookings"])
 
 @router.get("/search-availability", response_model=None)
 def list_available_rooms(
-    ngay_nhan_phong: str = Query(..., description="Ngày nhận phòng (DD/MM, DD/MM/YYYY, YYYY-MM-DD, ...)"),
-    ngay_tra_phong: str = Query(..., description="Ngày trả phòng (DD/MM, DD/MM/YYYY, YYYY-MM-DD, ...)"),
+    ngay_nhan_phong: str = Query(
+        ..., description="Ngày nhận phòng (DD/MM, DD/MM/YYYY, YYYY-MM-DD, ...)"),
+    ngay_tra_phong: str = Query(
+        ..., description="Ngày trả phòng (DD/MM, DD/MM/YYYY, YYYY-MM-DD, ...)"),
     repository: GoogleSheetsRepository = Depends(get_google_sheets_repository),
 ):
     """Trả về danh sách phòng còn trống trong khoảng ngày nhận – trả phòng."""
